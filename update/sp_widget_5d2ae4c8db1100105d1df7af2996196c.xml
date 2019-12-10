@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?><record_update table="sp_widget">
+    <sp_widget action="INSERT_OR_UPDATE">
+        <category>custom</category>
+        <client_script><![CDATA[function() {
+  /* widget controller */
+  var c = this;
+	c.note = {};
+	
+	function clearInput() {
+		c.note.text = '';
+	}
+	
+	c.submitNote = function() {
+		c.server.get({
+			'action': 'submitNote',
+			'note': c.note
+		}).then(function(res) {
+			clearInput();
+			console.log(res)
+			c.data = res.data;
+		});
+	}
+	
+	c.filterNotes = function() {
+		c.server.get({
+			'action': 'filterNotes',
+			'note': c.note
+		}).then(function(res) {
+			c.data = res.data;
+		});
+	}
+}]]></client_script>
+        <controller_as>c</controller_as>
+        <css>input {
+	width: 100%; 
+}
+
+ul {
+	list-style-type: none;
+  padding: 0;
+  margin: 0;
+  padding-top: 1em;
+}
+
+ul .panel {
+	padding: .25em; 
+}</css>
+        <data_table>sp_instance</data_table>
+        <demo_data/>
+        <description/>
+        <docs/>
+        <field_list/>
+        <has_preview>false</has_preview>
+        <id/>
+        <internal>false</internal>
+        <link><![CDATA[function link(scope, element, attrs, controller) {
+  
+}]]></link>
+        <name>Raven Feed</name>
+        <option_schema/>
+        <public>false</public>
+        <roles>x_270372_raven.user</roles>
+        <script><![CDATA[(function() {
+  /* populate the 'data' object */
+  /* e.g., data.table = $sp.getValue('table'); */
+	
+	var filterText;
+	
+	function getAttachmentsForNote(sysId) {
+		var attachments = [];
+		var attachment;
+		
+		var gr = new GlideRecord('sys_attachment');
+		gr.addQuery('table_sys_id', sysId);
+		gr.query();
+		while (gr.next()) {
+			attachment = {};
+			$sp.getRecordElements(attachment, gr, 'file_name,sys_id');
+			attachments.push(attachment);
+		}
+		
+		return attachments;
+	}
+	
+	function getFeed(filterText) {
+		var notes = [];
+		var note;
+		var gr = new GlideRecord('x_270372_raven_note');
+		gr.addQuery('user', gs.getUserID());
+		gr.orderByDesc('sys_created_on');
+		
+		if (filterText) {
+			gr.addQuery('IR_AND_OR_QUERY', filterText);
+		}
+		
+		gr.query();
+		while (gr.next()) {
+			note = {};
+			$sp.getRecordElements(note, gr, 'user,text,sys_created_on')
+			
+			note.attachments = getAttachmentsForNote(gr.sys_id.toString());
+			notes.push(note);
+		}
+		
+		return notes;
+	}
+	
+	function submitNote(input) {
+		var gr = new GlideRecord('x_270372_raven_note');
+		gr.initialize();
+		gr.user = gs.getUserID();
+		gr.text = input.note.text;
+		gr.insert();
+	}
+	
+	if (input && input.action == 'submitNote') {
+		submitNote(input);
+	}
+	
+	if (input && input.action == 'filterNotes') {
+		filterText = input.note.text;
+	}
+	
+	data.feed = getFeed(filterText);
+})();]]></script>
+        <servicenow>false</servicenow>
+        <sys_class_name>sp_widget</sys_class_name>
+        <sys_created_by>admin</sys_created_by>
+        <sys_created_on>2019-11-18 17:22:12</sys_created_on>
+        <sys_id>5d2ae4c8db1100105d1df7af2996196c</sys_id>
+        <sys_mod_count>38</sys_mod_count>
+        <sys_name>Raven Feed</sys_name>
+        <sys_package display_value="Raven" source="x_270372_raven">a9f82448db1100105d1df7af2996192f</sys_package>
+        <sys_policy/>
+        <sys_scope display_value="Raven">a9f82448db1100105d1df7af2996192f</sys_scope>
+        <sys_update_name>sp_widget_5d2ae4c8db1100105d1df7af2996196c</sys_update_name>
+        <sys_updated_by>admin</sys_updated_by>
+        <sys_updated_on>2019-11-18 20:48:09</sys_updated_on>
+        <template><![CDATA[<div>
+  <h1>Raven Feed</h1>
+  
+  <form ng-submit="c.submitNote()">
+    <div class="input-group-lg">
+      <input ng-model="c.note.text" ng-change="c.filterNotes()" ng-model-options="{ debounce: 250 }" type="text" class="form-control" placeholder="What's on your mind?">
+    </div>
+  </form>
+  
+  <ul class="feed">
+    <li class="panel panel-default" ng-repeat="note in c.data.feed">
+      <div class="text-muted">
+        {{ note.sys_created_on.display_value }}
+      </div>
+    	{{ note.text.display_value }}
+      <div>
+        <span ng-repeat="attachment in note.attachments">
+        	<a ng-href="/sys_attachment.do?sys_id={{ attachment.sys_id.value }}">{{ attachment.file_name.display_value }}</a>
+        </span>
+      </div>
+    </li>
+  </ul>
+</div>]]></template>
+    </sp_widget>
+</record_update>
